@@ -5,83 +5,140 @@
 // @grant        none
 // ==/UserScript==
 
-(function() {
-  'use strict';
+(function () {
+  "use strict";
 
-  function createCheckbox(index) {
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.style.margin = '2px';
-    checkbox.style.appearance = 'none';
-    checkbox.style.width = '20px';
-    checkbox.style.height = '20px';
-    checkbox.style.border = '1px solid #fff';
-    checkbox.style.backgroundColor = '#fff';
-    checkbox.style.cursor = 'pointer';
+  var bannerStyle = {
+    backgroundColor: "#272727",
+    display: "flex",
+    flexWrap: "wrap",
+    justifyContent: "space-around",
+    position: "relative",
+    width: "100%",
+  };
 
-    // Restore the state from local storage
-    const checked = localStorage.getItem('checkbox' + index);
-    checkbox.checked = !!checked;
+  var unitBlockStyle = {
+    alignSelf: "start",
+    display: "grid",
+    gap: "5px",
+    gridTemplateColumns: "repeat(5, 1fr)",
+    margin: "10px",
+  };
 
-    checkbox.onchange = function() {
-      // Update the color
-      checkbox.style.backgroundColor = checkbox.checked ? 'green' : '#fff';
-      // Save the state to local storage
-      localStorage.setItem('checkbox' + index, checkbox.checked ? 'true' : '');
-    };
+  var unitLabelStyle = {
+    color: "white",
+    gridColumn: "1 / span 5",
+    marginBottom: "10px",
+  };
 
-    // Update the color
-    checkbox.style.backgroundColor = checkbox.checked ? 'green' : '#fff';
+  var checkboxStyle = {
+    appearance: "none",
+    border: "1px solid white",
+    cursor: "pointer",
+    height: "20px",
+    margin: "2px",
+    width: "20px",
+  };
 
-    return checkbox;
-  }
-
-  function createUnit(unitNumber, lessonCount) {
-    const unit = document.createElement('div');
-    unit.style.display = 'grid';
-    unit.style.gridTemplateColumns = 'repeat(5, 1fr)';
-    unit.style.gridGap = '5px';
-    unit.style.margin = '10px';
-    unit.style.alignSelf = "start";
-
-    const label = document.createElement('div');
-    label.textContent = 'Unit ' + unitNumber + ':';
-    label.style.color = '#fff';
-    label.style.marginBottom = '10px';
-    label.style.gridColumn = '1 / span 5';
-
-    unit.appendChild(label);
-
-    for (let i = 0; i < lessonCount; i++) {
-      const checkbox = createCheckbox((unitNumber - 1) * 25 + i);
-      unit.appendChild(checkbox);
-    }
-
-    return unit;
-  }
-
-  function injectBanner() {
-    const banner = document.createElement('div');
-    banner.style.width = '100%';
-    banner.style.backgroundColor = '#272727';
-    banner.style.display = 'flex';
-    banner.style.justifyContent = 'space-around';
-    banner.style.flexWrap = 'wrap';
-    banner.style.position = 'relative';
-    banner.style.zIndex = '0';
-
-    const unitLessonCounts = [25, 25, 25, 25, 25, 25, 8];
-    for (let i = 0; i < unitLessonCounts.length; i++) {
-      const unit = createUnit(i + 1, unitLessonCounts[i]);
-      banner.appendChild(unit);
-    }
-
-    // Find the target div and insert the banner above it
-    const targetDiv = document.getElementById('page-titlebar');
-    targetDiv.parentNode.insertBefore(banner, targetDiv);
-  }
-
+  var checkboxToggleStyle = (checked) => ({
+    backgroundColor: checked ? "green" : "#272727",
+  });
 
   injectBanner();
 
+  function injectBanner() {
+    const banner = createBanner();
+    const mainHeading = document.getElementById("page-titlebar");
+    mainHeading.parentNode.insertBefore(banner, mainHeading);
+  }
+
+  function createBanner() {
+    const banner = div({ styles: bannerStyle });
+
+    const unitLessonCounts = [25, 25, 25, 25, 25, 25, 8];
+    for (let i = 0; i < unitLessonCounts.length; i++) {
+      const unitBlock = createUnitBlock(i + 1, unitLessonCounts[i]);
+      banner.appendChild(unitBlock);
+    }
+
+    return banner;
+  }
+
+  function createUnitBlock(unitNumber, lessonCount) {
+    const unitBlock = div({ styles: unitBlockStyle });
+
+    const unitLabel = div({
+      properties: { textContent: "Unit " + unitNumber + ":" },
+      styles: unitLabelStyle,
+    });
+    unitBlock.appendChild(unitLabel);
+
+    for (let i = 0; i < lessonCount; i++) {
+      const lessonCheckboxIndex = (unitNumber - 1) * 25 + i;
+      const lessonCheckbox = checkbox({
+        checked: !!localStorage.getItem("checkbox" + lessonCheckboxIndex),
+        onChange: (event) => {
+          const checkbox = event.currentTarget;
+          styleElement(checkbox, checkboxToggleStyle(checkbox.checked));
+          localStorage.setItem(
+            "checkbox" + lessonCheckboxIndex,
+            checkbox.checked ? "true" : ""
+          );
+        },
+        styles: checkboxStyle,
+      });
+      styleElement(lessonCheckbox, checkboxToggleStyle(lessonCheckbox.checked));
+      unitBlock.appendChild(lessonCheckbox);
+    }
+
+    return unitBlock;
+  }
+
+  // Helper functions
+
+  function div({ styles, properties }) {
+    return createElement({
+      type: "div",
+      styles,
+      properties,
+    });
+  }
+
+  function checkbox({ checked, onChange, styles }) {
+    return createElement({
+      type: "input",
+      onChange,
+      styles,
+      attributes: { type: "checkbox" },
+      properties: { checked },
+    });
+  }
+
+  function createElement({
+    type,
+    onChange,
+    styles = {},
+    attributes = {},
+    properties = {},
+  }) {
+    const element = document.createElement(type);
+    if (onChange) {
+      element.onchange = onChange;
+    }
+    Object.entries(attributes).forEach(([attr, value]) => {
+      element.setAttribute(attr, value);
+    });
+    Object.entries(properties).forEach(([prop, value]) => {
+      element[prop] = value;
+    });
+    styleElement(element, styles);
+
+    return element;
+  }
+
+  function styleElement(element, styles) {
+    Object.entries(styles).forEach(([selector, value]) => {
+      element.style[selector] = value;
+    });
+  }
 })();
